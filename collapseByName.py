@@ -32,15 +32,18 @@ def collapse_objects(obj_list):
     if len(obj_list) == 1:
         return obj_list[0]
 
-    # Create an empty Editable Mesh object to attach to
+    # Create an empty Editable Mesh object to attach to, put it on the same layer as our objects
+    layer = obj_list[0].layer
     root = rt.Editable_Mesh()
     root.name = obj_list[0].name
+    layer.addNode(root)
 
     # Make sure the object is attachable, then attach it to root
     for obj in obj_list:
         if rt.SuperClassOf(obj) == rt.GeometryClass and rt.IsValidNode(obj):
             rt.meshop.attach(root, obj, condenseMat=True, deleteSourceNode=True, attachMat=rt.name("IDToMat"))
 
+    rt.gc()
     return root
 
 
@@ -82,7 +85,7 @@ def run():
 
     with pymxs.undo(False), pymxs.redraw(False):
         try:
-            batch = 25
+            batch = 100
             objs_processed = 0
 
             for group in objs_sorted.values():
@@ -103,7 +106,6 @@ def run():
                     collapse_objects(group)
 
                 objs_processed += group_count
-                rt.gc()
 
             print "Collapsed %d Meshes into %d" % (objs_count, len(objs_sorted.keys()))
             return

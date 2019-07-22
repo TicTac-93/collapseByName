@@ -53,7 +53,7 @@ def run():
     #                 Collect Objects
     # ==================================================
 
-    objs = rt.objects
+    objs = rt.geometry
 
     # DEBUG - Use Selection
     # objs = rt.getCurrentSelection()

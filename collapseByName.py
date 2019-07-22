@@ -73,6 +73,7 @@ def run():
             objs_sorted[obj.name].append(obj)
 
         finally:
+            rt.windows.processPostedMessages()  # Prevent Max from hanging
             if i > milestone:
                 print "%d%%" % ((i*100)/objs_count)
                 milestone = milestone + (objs_count / 20)
@@ -85,10 +86,12 @@ def run():
 
     with pymxs.undo(False), pymxs.redraw(False):
         try:
+            # TODO: Set batch size programmatically, based on the total number of objects?
             batch = 100
             objs_processed = 0
 
             for group in objs_sorted.values():
+                rt.windows.processPostedMessages()  # Prevent Max from hanging
                 print "%d%%  -  Collapsing %s" % (min(100, ((100*objs_processed) / objs_count)), group[0].name)
                 group_count = len(group)
 

@@ -63,12 +63,15 @@ def run():
     milestone = (objs_count / 20)
     objs_sorted = {}
 
-    prog = re.compile("\\[[\\d]+?\\]")
+    # Create a Regex object that detects numbers within brackets ex: [121234], [99767675]
+    # Creating an object prevents recompiling the object inside the loop.
+    bracket_regex = re.compile("\\[[\\d]+?\\]")
 
     # Iterate over all objects, sorting them into groups by name
     print 'Examining %d Scene Objects...' % objs_count
     for i, obj in enumerate(objs):
-        name = prog.sub('', obj.name)
+        # Remove matches from the name string
+        name = bracket_regex.sub('', obj.name)
         try:
             objs_sorted[name].append(obj)
 

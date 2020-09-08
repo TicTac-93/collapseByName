@@ -10,6 +10,7 @@
 import pymxs
 import MaxPlus
 import traceback
+import re
 
 maxscript = MaxPlus.Core.EvalMAXScript
 rt = pymxs.runtime
@@ -62,20 +63,26 @@ def run():
     milestone = (objs_count / 20)
     objs_sorted = {}
 
+    # Create a Regex object that detects numbers within brackets ex: [121234], [99767675]
+    # Creating an object prevents recompiling the object inside the loop.
+    bracket_regex = re.compile("\\[[\\d]+?\\]")
+
     # Iterate over all objects, sorting them into groups by name
     print 'Examining %d Scene Objects...' % objs_count
     for i, obj in enumerate(objs):
+        # Remove matches from the name string
+        name = bracket_regex.sub('', obj.name)
         try:
-            objs_sorted[obj.name].append(obj)
+            objs_sorted[name].append(obj)
 
         except Exception:
-            objs_sorted[obj.name] = []
-            objs_sorted[obj.name].append(obj)
+            objs_sorted[name] = []
+            objs_sorted[name].append(obj)
 
         finally:
             rt.windows.processPostedMessages()  # Prevent Max from hanging
             if i > milestone:
-                print "%d%%" % ((i*100)/objs_count)
+                print "%d%%" % ((i * 100) / objs_count)
                 milestone = milestone + (objs_count / 20)
 
     # ==================================================

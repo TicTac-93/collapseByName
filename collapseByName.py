@@ -100,7 +100,7 @@ def run():
     num_unique_objs = 0
 
     # Regex for finding bracketed digits
-    remove_brackets_re = re.compile(r"[[\d]+?]")
+    remove_brackets_re = re.compile(r"\s*\[[\d]+?]")
 
     # Iterate over all objects, sorting them into groups by name
     print 'Examining {} Scene Objects...'.format(total_objs)

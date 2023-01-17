@@ -8,20 +8,20 @@
 
 # Import PyMXS, and set up shorthand vars
 
-from __future__ import unicode_literals
+# from __future__ import unicode_literals
 
 import pymxs
 import traceback
 import re
 from math import log10
 
-maxscript = MaxPlus.Core.EvalMAXScript
+maxscript = pymxs.runtime.execute
 rt = pymxs.runtime
 
 # Maxscript snippet to return an array of instances
 # Maxscript uses a pass by reference parameter to return this value,
 # making it incompatible with the current PyMXS implementation
-MaxPlus.Core.EvalMAXScript(
+maxscript(
     "fn rf_getInstances obj = ("
     "    InstanceMgr.GetInstances obj &instances"
     "    return instances"
@@ -100,7 +100,7 @@ def run():
     remove_brackets_re = re.compile(r"[[\d]+?]")
 
     # Iterate over all objects, sorting them into groups by name
-    print 'Examining {} Scene Objects...'.format(total_objs)
+    print("Examining %s Scene Objects..." % total_objs)
     for i, obj in enumerate(objs):
         name = remove_brackets_re.sub(u'', obj.name) if IGNORE_BRACKET_DIGITS else obj.name
         # In order to support unicode characters properly in the dictionary, non-ascii characters
@@ -132,15 +132,15 @@ def run():
         # Not sure if this try block is needed, but here is a general
         # catcher for exceptions thrown while analyzing the scene
         except Exception as ex:
-            print u"Error: {} with Object: \"{}\" {}".format(ex, name, obj)
+            print('Error: %s with Object: "%s" %s' % (ex, name, obj))
             traceback.print_exc()
 
         finally:
             if i > milestone:
-                print "{:3d}%".format((i * 100) / total_objs)
+                print("%d%%" % ((i * 100) / total_objs))
                 milestone = milestone + (total_objs / 20)
 
-    print "100% - Done"
+    print("100% - Done")
 
     # ==================================================
     #                 Collapse Groups
@@ -157,10 +157,10 @@ def run():
 
             for group in unique_objs_sorted.values():
                 rt.windows.processPostedMessages()  # Prevent Max from hanging
-                print "{:3d}%  -  Collapsing {}".format(
+                print("%d%%  -  Collapsing %s" % (
                     min(100, ((100 * objs_processed) / num_unique_objs)),
                     group[0].name
-                )
+                ))
                 group_count = len(group)
 
                 if group_count > batch:
@@ -178,14 +178,14 @@ def run():
 
                 objs_processed += group_count
 
-            print "100%  -  Collapsing Done"
+            print("100%  -  Collapsing Done")
 
             # If an object is an instance, add a number rather than collapsing
             for group in instances_sorted.values():
-                print "{:3d}%  -  Naming {}".format(
+                print("%d%%  -  Naming %s" % (
                     min(100, ((100 * instances_processed) / num_instances)),
                     group[0].name
-                )
+                ))
                 group_count = len(group)
 
                 # Padding to 3 digits is preferred, but this automatically adapts if the object count requires it
@@ -193,23 +193,25 @@ def run():
 
                 for i, obj in enumerate(group):
                     # Format for 0 padded digit
-                    obj.name = u"{} - {}".format(obj.name, str(i).zfill(max(3, digits)))
+                    obj.name = u"%s - %s" % (obj.name, str(i).zfill(max(3, digits)))
 
                 instances_processed += group_count
 
-            print "100%  -  Naming Done"
+            print("100%  -  Naming Done")
 
-            print "Collapsed {} Meshes into {}".format(total_objs, len(unique_objs_sorted.keys()) + num_instances)
+            print("Collapsed %d Meshes into %d" % (total_objs, len(unique_objs_sorted.keys()) + num_instances))
             return
 
         # Catches any exceptions thrown while collapsing objects and prints the traceback
         except Exception as ex:
-            print "Error: {}\n The script must now exit".format(ex)
+            print("Error: %s\n The script must now exit" % ex)
             traceback.print_exc()
             return
 
 
-try:
-    run()
-except Exception as e:
-    print e
+# try:
+#     run()
+# except Exception as e:
+#     print(e)
+
+run()

@@ -1,4 +1,4 @@
-# Collapse By Name v1.0
+# Collapse By Name v1.1
 # Authored by Josh Hollander and Avery Brown
 #
 # Gathers all objects in the scene, grouping them by name.  Objects with the exact same name will be merged together.
@@ -6,12 +6,10 @@
 #
 # Inspiration for part of this code comes from ScriptSpot user antomor, and his Quick Attach MAXScript.
 
-# Import PyMXS, MaxPlus, and set up shorthand vars
+# Import PyMXS, and set up shorthand vars
 import pymxs
-import MaxPlus
 import traceback
 
-maxscript = MaxPlus.Core.EvalMAXScript
 rt = pymxs.runtime
 
 
@@ -26,7 +24,7 @@ def collapse_objects(obj_list):
         return None
 
     # DEBUG
-    # print len(obj_list)
+    # print(len(obj_list))
 
     # Next make sure we weren't passed a list with only one object.  For reasons unknown to me, this will crash Max.
     if len(obj_list) == 1:
@@ -63,7 +61,7 @@ def run():
     objs_sorted = {}
 
     # Iterate over all objects, sorting them into groups by name
-    print 'Examining %d Scene Objects...' % objs_count
+    print("Examining %d Scene Objects..." % objs_count)
     for i, obj in enumerate(objs):
         try:
             objs_sorted[obj.name].append(obj)
@@ -75,14 +73,14 @@ def run():
         finally:
             rt.windows.processPostedMessages()  # Prevent Max from hanging
             if i > milestone:
-                print "%d%%" % ((i*100)/objs_count)
+                print("%d%%" % ((i*100)/objs_count))
                 milestone = milestone + (objs_count / 20)
 
     # ==================================================
     #                 Collapse Groups
     # ==================================================
 
-    print "Collapsing Objects..."
+    print("Collapsing Objects...")
 
     with pymxs.undo(False), pymxs.redraw(False):
         try:
@@ -92,7 +90,7 @@ def run():
 
             for group in objs_sorted.values():
                 rt.windows.processPostedMessages()  # Prevent Max from hanging
-                print "%d%%  -  Collapsing %s" % (min(100, ((100*objs_processed) / objs_count)), group[0].name)
+                print("%d%%  -  Collapsing %s" % (min(100, ((100*objs_processed) / objs_count)), group[0].name))
                 group_count = len(group)
 
                 if group_count > batch:
@@ -110,7 +108,7 @@ def run():
 
                 objs_processed += group_count
 
-            print "Collapsed %d Meshes into %d" % (objs_count, len(objs_sorted.keys()))
+            print("Collapsed %d Meshes into %d" % (objs_count, len(objs_sorted.keys())))
             return
 
         except Exception as e:

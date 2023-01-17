@@ -7,15 +7,51 @@
 # Inspiration for part of this code comes from ScriptSpot user antomor, and his Quick Attach MAXScript.
 
 # Import PyMXS, and set up shorthand vars
+
+from __future__ import unicode_literals
+
 import pymxs
 import traceback
+import re
+from math import log10
 
+maxscript = MaxPlus.Core.EvalMAXScript
 rt = pymxs.runtime
+
+# Maxscript snippet to return an array of instances
+# Maxscript uses a pass by reference parameter to return this value,
+# making it incompatible with the current PyMXS implementation
+MaxPlus.Core.EvalMAXScript(
+    "fn rf_getInstances obj = ("
+    "    InstanceMgr.GetInstances obj &instances"
+    "    return instances"
+    ")"
+)
+
+# ==================================================
+#                    Flags
+# ==================================================
+
+SKIP_INSTANCE = True
+IGNORE_BRACKET_DIGITS = True
+USE_SELECTION = False
 
 
 # ==================================================
 #                    Functions
 # ==================================================
+
+# Calculates the number of digits in a number
+# Based on a stack overflow answer by John La Rooy
+# https://stackoverflow.com/a/2189827/15062519
+def magnitude_of_number(n):
+    if n > 0:
+        return int(log10(n)) + 1
+    elif n == 0:
+        return 1
+    else:
+        return int(log10(-n)) + 1  # +1 if you don't count the '-'
+
 
 def collapse_objects(obj_list):
     # NOTE: This function will cause 3ds Max to crash if it's passed a list of length 1.  I have no idea why.
@@ -46,35 +82,65 @@ def collapse_objects(obj_list):
 
 
 def run():
-
     # ==================================================
     #                 Collect Objects
     # ==================================================
 
-    objs = rt.geometry
+    # Allows choosing between selection and the full scene
+    objs = rt.getCurrentSelection() if USE_SELECTION else rt.geometry
 
-    # DEBUG - Use Selection
-    # objs = rt.getCurrentSelection()
+    total_objs = len(objs)
+    milestone = (total_objs / 20)
+    unique_objs_sorted = {}
+    instances_sorted = {}
+    num_instances = 0
+    num_unique_objs = 0
 
-    objs_count = len(objs)
-    milestone = (objs_count / 20)
-    objs_sorted = {}
+    # Regex for finding bracketed digits
+    remove_brackets_re = re.compile(r"[[\d]+?]")
 
     # Iterate over all objects, sorting them into groups by name
-    print("Examining %d Scene Objects..." % objs_count)
+    print 'Examining {} Scene Objects...'.format(total_objs)
     for i, obj in enumerate(objs):
+        name = remove_brackets_re.sub(u'', obj.name) if IGNORE_BRACKET_DIGITS else obj.name
+        # In order to support unicode characters properly in the dictionary, non-ascii characters
+        # are encoded to their xml versions (for example: &#163 for a pound sterling sign),
+        # which allows objects to retain unique dictionary keys.
+        name.encode('ascii', 'xmlcharrefreplace')
         try:
-            objs_sorted[obj.name].append(obj)
+            # Tests if an object is an instance or not
+            if len(rt.rf_getInstances(obj)) > 1 and SKIP_INSTANCE:
+                try:
+                    num_instances += 1
+                    instances_sorted[name].append(obj)
+                except KeyError:
+                    # Adds the Key to the dictionary if it doesn't already exist
+                    instances_sorted[name] = []
+                    instances_sorted[name].append(obj)
+            # Unique Objects
+            else:
+                try:
+                    num_unique_objs += 1
+                    unique_objs_sorted[name].append(obj)
+                except KeyError:
+                    # Adds the Key to the dictionary if it doesn't already exist
+                    unique_objs_sorted[name] = []
+                    unique_objs_sorted[name].append(obj)
+            # Prevent Max from hanging
+            rt.windows.processPostedMessages()
 
-        except Exception:
-            objs_sorted[obj.name] = []
-            objs_sorted[obj.name].append(obj)
+        # Not sure if this try block is needed, but here is a general
+        # catcher for exceptions thrown while analyzing the scene
+        except Exception as ex:
+            print u"Error: {} with Object: \"{}\" {}".format(ex, name, obj)
+            traceback.print_exc()
 
         finally:
-            rt.windows.processPostedMessages()  # Prevent Max from hanging
             if i > milestone:
-                print("%d%%" % ((i*100)/objs_count))
-                milestone = milestone + (objs_count / 20)
+                print "{:3d}%".format((i * 100) / total_objs)
+                milestone = milestone + (total_objs / 20)
+
+    print "100% - Done"
 
     # ==================================================
     #                 Collapse Groups
@@ -87,10 +153,14 @@ def run():
             # TODO: Set batch size programmatically, based on the total number of objects?
             batch = 100
             objs_processed = 0
+            instances_processed = 0
 
-            for group in objs_sorted.values():
+            for group in unique_objs_sorted.values():
                 rt.windows.processPostedMessages()  # Prevent Max from hanging
-                print("%d%%  -  Collapsing %s" % (min(100, ((100*objs_processed) / objs_count)), group[0].name))
+                print "{:3d}%  -  Collapsing {}".format(
+                    min(100, ((100 * objs_processed) / num_unique_objs)),
+                    group[0].name
+                )
                 group_count = len(group)
 
                 if group_count > batch:
@@ -108,12 +178,38 @@ def run():
 
                 objs_processed += group_count
 
-            print("Collapsed %d Meshes into %d" % (objs_count, len(objs_sorted.keys())))
+            print "100%  -  Collapsing Done"
+
+            # If an object is an instance, add a number rather than collapsing
+            for group in instances_sorted.values():
+                print "{:3d}%  -  Naming {}".format(
+                    min(100, ((100 * instances_processed) / num_instances)),
+                    group[0].name
+                )
+                group_count = len(group)
+
+                # Padding to 3 digits is preferred, but this automatically adapts if the object count requires it
+                digits = magnitude_of_number(group_count)
+
+                for i, obj in enumerate(group):
+                    # Format for 0 padded digit
+                    obj.name = u"{} - {}".format(obj.name, str(i).zfill(max(3, digits)))
+
+                instances_processed += group_count
+
+            print "100%  -  Naming Done"
+
+            print "Collapsed {} Meshes into {}".format(total_objs, len(unique_objs_sorted.keys()) + num_instances)
             return
 
-        except Exception as e:
+        # Catches any exceptions thrown while collapsing objects and prints the traceback
+        except Exception as ex:
+            print "Error: {}\n The script must now exit".format(ex)
             traceback.print_exc()
             return
 
 
-run()
+try:
+    run()
+except Exception as e:
+    print e

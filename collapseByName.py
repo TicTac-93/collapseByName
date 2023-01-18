@@ -1,4 +1,4 @@
-# Collapse By Name v1.1
+# Collapse By Name v1.2
 # Authored by Josh Hollander and Avery Brown
 #
 # Gathers all objects in the scene, grouping them by name.  Objects with the exact same name will be merged together.
@@ -137,7 +137,9 @@ def run():
 
         finally:
             if i > milestone_examine:
-                print("%d%% Examined" % round((i * 100) / total_objs))
+                print("%d%%  -  Examining..." % (
+                    round((i * 100) / total_objs)
+                      ))
                 milestone_examine = milestone_examine + (total_objs / 100)
 
     print("100% - Done")
@@ -154,12 +156,14 @@ def run():
             batch = 100
             objs_processed = 0
             instances_processed = 0
+            milestone_collapse = num_unique_objs / 100
+            milestone_naming = num_instances / 100
 
             for i, group in enumerate(unique_objs_sorted.values()):
-                print("%d%%  -  Collapsing %s" % (
-                    min(100, ((100 * objs_processed) / num_unique_objs)),
-                    group[0].name
-                ))
+                # print("%d%%  -  Collapsing %s" % (
+                #     min(100, ((100 * objs_processed) / num_unique_objs)),
+                #     group[0].name
+                # ))
 
                 group_count = len(group)
 
@@ -178,29 +182,34 @@ def run():
 
                 objs_processed += group_count
 
-            print("100%  -  Collapsing Done")
+                if objs_processed >= milestone_collapse:
+                    print("%d%%  -  Collapsing..." % (
+                        round((objs_processed * 100) / num_unique_objs)
+                    ))
+                    milestone_collapse = min(num_unique_objs, objs_processed + (num_unique_objs / 100))
+
+            print("Collapsing Done")
 
             # If an object is an instance, add a number rather than collapsing
             for i, group in enumerate(instances_sorted.values()):
                 group_count = len(group)
-                milestone_naming = num_instances / 100
-
-                if i > milestone_naming:
-                    print("%d%%  -  Renaming..." % (
-                        min(99, round((100 * instances_processed) / num_instances))
-                    ))
-                    milestone_naming = milestone_naming + (num_instances / 100)
 
                 # Padding to 3 digits is preferred, but this automatically adapts if the object count requires it
                 digits = magnitude_of_number(group_count)
 
-                for i, obj in enumerate(group):
+                for i2, obj in enumerate(group):
                     # Format for 0 padded digit
-                    obj.name = u"%s - %s" % (obj.name, str(i).zfill(max(3, digits)))
+                    obj.name = u"%s - %s" % (obj.name, str(i2).zfill(max(3, digits)))
 
                 instances_processed += group_count
 
-            print("100%  -  Naming Done")
+                if instances_processed >= milestone_naming:
+                    print("%d%%  -  Renaming..." % (
+                        round((100 * instances_processed) / num_instances)
+                    ))
+                    milestone_naming = min(num_instances, instances_processed + (num_instances / 100))
+
+            print("Naming Done")
 
             print("Collapsed %d Meshes into %d" % (total_objs, len(unique_objs_sorted.keys()) + num_instances))
             return

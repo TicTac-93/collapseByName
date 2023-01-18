@@ -90,7 +90,6 @@ def run():
     objs = rt.getCurrentSelection() if USE_SELECTION else rt.geometry
 
     total_objs = len(objs)
-    milestone = (total_objs / 20)
     unique_objs_sorted = {}
     instances_sorted = {}
     num_instances = 0
@@ -101,6 +100,7 @@ def run():
 
     # Iterate over all objects, sorting them into groups by name
     print("Examining %s Scene Objects..." % total_objs)
+    milestone_examine = (total_objs / 100)
     for i, obj in enumerate(objs):
         name = remove_brackets_re.sub(u'', obj.name) if IGNORE_BRACKET_DIGITS else obj.name
         # In order to support unicode characters properly in the dictionary, non-ascii characters
@@ -109,7 +109,7 @@ def run():
         name.encode('ascii', 'xmlcharrefreplace')
         try:
             # Tests if an object is an instance or not
-            if len(rt.rf_getInstances(obj)) > 1 and SKIP_INSTANCE:
+            if SKIP_INSTANCE and len(rt.rf_getInstances(obj)) > 1:
                 try:
                     num_instances += 1
                     instances_sorted[name].append(obj)
@@ -136,9 +136,9 @@ def run():
             traceback.print_exc()
 
         finally:
-            if i > milestone:
-                print("%d%%" % ((i * 100) / total_objs))
-                milestone = milestone + (total_objs / 20)
+            if i > milestone_examine:
+                print("%d%% Examined" % round((i * 100) / total_objs))
+                milestone_examine = milestone_examine + (total_objs / 100)
 
     print("100% - Done")
 
@@ -155,12 +155,12 @@ def run():
             objs_processed = 0
             instances_processed = 0
 
-            for group in unique_objs_sorted.values():
-                rt.windows.processPostedMessages()  # Prevent Max from hanging
+            for i, group in enumerate(unique_objs_sorted.values()):
                 print("%d%%  -  Collapsing %s" % (
                     min(100, ((100 * objs_processed) / num_unique_objs)),
                     group[0].name
                 ))
+
                 group_count = len(group)
 
                 if group_count > batch:
@@ -181,12 +181,15 @@ def run():
             print("100%  -  Collapsing Done")
 
             # If an object is an instance, add a number rather than collapsing
-            for group in instances_sorted.values():
-                print("%d%%  -  Naming %s" % (
-                    min(100, ((100 * instances_processed) / num_instances)),
-                    group[0].name
-                ))
+            for i, group in enumerate(instances_sorted.values()):
                 group_count = len(group)
+                milestone_naming = num_instances / 100
+
+                if i > milestone_naming:
+                    print("%d%%  -  Renaming..." % (
+                        min(99, round((100 * instances_processed) / num_instances))
+                    ))
+                    milestone_naming = milestone_naming + (num_instances / 100)
 
                 # Padding to 3 digits is preferred, but this automatically adapts if the object count requires it
                 digits = magnitude_of_number(group_count)
